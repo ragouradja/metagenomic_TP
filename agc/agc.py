@@ -110,12 +110,21 @@ def get_chunks(sequence, chunk_size):
               for i in range(0, len_seq, chunk_size) 
                 if i+chunk_size <= len_seq - 1]
 
-
 def cut_kmer(sequence, kmer_size):
     """Cut sequence into kmers"""
     for i in range(0, len(sequence) - kmer_size + 1):
         yield sequence[i:i+kmer_size]
 
+def get_unique_kmer(kmer_dict, sequence, id_seq, kmer_size):
+    kmers = cut_kmer(sequence, kmer_size)
+
+    for kmer in kmers:
+        if kmer not in kmer_dict:
+            kmer_dict[kmer] = [id_seq]
+        else:
+            kmer_dict[kmer] += [id_seq]
+    return kmer_dict
+    
 def get_identity(alignment_list):
     """Prend en une liste de séquences alignées au format ["SE-QUENCE1", "SE-QUENCE2"]
     Retourne le pourcentage d'identite entre les deux."""
@@ -132,21 +141,34 @@ def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, 
     sequence_length = list(dereplication_fulllength(amplicon_file, minseqlen, mincount))
     nb_seq = len(sequence_length)
     list_otu = []
-
-    for i in range(nb_seq - 1):
-        list_otu.append(sequence_length[i][0])
+    mother = []
+    for i in range(nb_seq):
+        if sequence_length[i] in mother:
+            continue
+        inter = [sequence_length[i]]            
         for j in range(i+1, nb_seq):
-            nw.global_align(sequence_length[i][0], sequence_length[j][0], gap_open=-1, gap_extend=-1,
-             matrix=os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH")))
-            
-
+            align = nw.global_align(sequence_length[i][0], sequence_length[j][0], gap_open=-1, gap_extend=-1,
+            matrix=os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH")))
+            identity = get_identity(align)
+            print(identity)
+            if identity > 97: 
+                inter.append(sequence_length[j])
+        list_otu.append(inter[0])                
+        mother += inter
+    return list_otu
 
 def fill(text, width=80):
     """Split text with a line return to respect fasta format"""
     return os.linesep.join(text[i:i+width] for i in range(0, len(text), width))
 
 def write_OTU(OTU_list, output_file):
-    pass
+    with open(output_file, "w") as filout:
+        count = 1
+        for seqlen in OTU_list:
+            filout.write(f">OTU_{count} occurrence:{seqlen[1]}\n")
+            full_seq = fill(seqlen[0])
+            filout.write(f"{full_seq}\n")
+            count += 1
 
 #==============================================================
 # Main program
@@ -159,14 +181,7 @@ def main():
     # Get arguments
     args = get_arguments()
     # Votre programme ici
-    seq = ["aa","jij","kk","jij","jij\n"]
-    seqlen = [(s, seq.count(s)) for s in seq]
-    seqlen = list(dict.fromkeys(seqlen))
-    seqlen.sort(key = lambda item: item[1])
-    print(seq)
-    print(seqlen)
-    print(seqlen)
-    for i in seqlen:
-        print(i[1])
+    otu = abundance_greedy_clustering(args.amplicon_file, args.minseqlen, args.mincount, args.chunk_size, args.kmer_size)
+    print(otu)
 if __name__ == '__main__':
     main()
