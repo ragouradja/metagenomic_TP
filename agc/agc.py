@@ -135,6 +135,31 @@ def search_mates(kmer_dict, sequence, kmer_size):
     id_parent = [id for id, occ in parents]
     return id_parent
 
+
+def std(data):
+    return statistics.stdev(data)
+
+
+def detect_chimera(perc_identity_matrix):
+    std_seg = []
+    parent1 = False
+    parent2 = False
+       
+    for seg in perc_identity_matrix:
+        std_seg.append(std(seg))
+        if seg[0] >= seg[1]:
+            parent1 = True
+        else:
+            parent2 = True
+    avg_std = statistics.mean(std_seg)
+
+    if avg_std > 5: 
+        if parent1 and parent2:
+             return True
+    return False
+
+
+
 def get_identity(alignment_list):
     """Prend en une liste de séquences alignées au format ["SE-QUENCE1", "SE-QUENCE2"]
     Retourne le pourcentage d'identite entre les deux."""
