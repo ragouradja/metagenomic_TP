@@ -176,22 +176,39 @@ def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
     kmer_dict = get_unique_kmer({}, all_seq[0], 0, kmer_size)
     kmer_dict = get_unique_kmer(kmer_dict, all_seq[1], 1, kmer_size)
     count = 2
-    parent1_chunk = get_chunks(all_seq[0],chunk_size)
-    parent2_chunk = get_chunks(all_seq[1],chunk_size)
+    yield all_seq[0]
+    yield all_seq[1]
 
     for i in range(2, len(all_seq)):
-        id_parents = search_mates(kmer_dict, sequence, kmer_size)
-        if len(id_parents) == 2:
-            id_parent1, id_parent2 = id_parents
-            parent1_chunk = get_chunks(all_seq[],chunk_size)
-            parent2_chunk = get_chunks(all_seq[1],chunk_size)   
-            seq_chunk = get_chunks(sequence, chunk_size)
+        pot_parent = []
+        perc_identity_matrix = []
+        seq_chunk = get_chunks(all_seq[i], chunk_size)
+
+        for chunk in seq_chunk:
+            pot_parent.append(sorted(search_mates(kmer_dict, chunk, kmer_size)))
+        for chunk_parent in pot_parent:
+            parent1_chunk = get_chunks(all_seq[chunk_parent[0]][0],chunk_size)
+            parent2_chunk = get_chunks(all_seq[chunk_parent[1]][0],chunk_size)     
+        for j in range(len(chunk_size)):
+            align_parent1 = nw.global_align(seq_chunk[j], parent1_chunk[j],
+                gap_open=-1, gap_extend=-1, matrix=os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH")))
+            identity_parent1 = get_identity(align_parent1)
+
+            align_parent2 = nw.global_align(seq_chunk[j], parent2_chunk[j],
+                gap_open=-1, gap_extend=-1, matrix=os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH")))
+            identity_parent2 = get_identity(align_parent2)
+
+            perc_identity_matrix.append([identity_parent1,identity_parent2])
+
+        if not detect_chimera(perc_identity_matrix):
+            kmer_dict = get_unique_kmer(kmer_dict, all_seq[i], i, kmer_size)
+            yield all_seq[i]
 
 
-
+        
 
 def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
-    sequence_length = list(dereplication_fulllength(amplicon_file, minseqlen, mincount))
+    sequence_length = list(chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size))
     nb_seq = len(sequence_length)
     list_otu = []
     mother = []
@@ -234,7 +251,8 @@ def main():
     # Get arguments
     args = get_arguments()
     # Votre programme ici
-    otu = abundance_greedy_clustering(args.amplicon_file, args.minseqlen, args.mincount, args.chunk_size, args.kmer_size)
-    print(otu)
+    seq_otu = abundance_greedy_clustering(args.amplicon_file, args.minseqlen, args.mincount, args.chunk_size, args.kmer_size)
+    write_OTU(seq_otu, args.output_file)
+
 if __name__ == '__main__':
     main()
