@@ -131,10 +131,11 @@ def search_mates(kmer_dict, sequence, kmer_size):
     for kmer in kmer_seq:
         if kmer in kmer_dict:
             count_id += kmer_dict[kmer]
-    parents = Counter(count_id).most_common(2)
-    id_parent = [id for id, occ in parents]
-    return id_parent
-
+    if len(count_id) > 1:
+        parents = Counter(count_id).most_common(2)
+        id_parent = [id for id, occ in parents]
+        return id_parent
+    return count_id
 
 def std(data):
     return statistics.stdev(data)
@@ -170,7 +171,24 @@ def get_identity(alignment_list):
     return round(100.0 * id_nu / len(alignment_list[0]), 2)
 
 def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
-    pass
+    
+    all_seq = list(dereplication_fulllength(amplicon_file, minseqlen, mincount))
+    kmer_dict = get_unique_kmer({}, all_seq[0], 0, kmer_size)
+    kmer_dict = get_unique_kmer(kmer_dict, all_seq[1], 1, kmer_size)
+    count = 2
+    parent1_chunk = get_chunks(all_seq[0],chunk_size)
+    parent2_chunk = get_chunks(all_seq[1],chunk_size)
+
+    for i in range(2, len(all_seq)):
+        id_parents = search_mates(kmer_dict, sequence, kmer_size)
+        if len(id_parents) == 2:
+            id_parent1, id_parent2 = id_parents
+            parent1_chunk = get_chunks(all_seq[],chunk_size)
+            parent2_chunk = get_chunks(all_seq[1],chunk_size)   
+            seq_chunk = get_chunks(sequence, chunk_size)
+
+
+
 
 def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
     sequence_length = list(dereplication_fulllength(amplicon_file, minseqlen, mincount))
