@@ -70,12 +70,27 @@ def get_arguments():
     return parser.parse_args()
 
 def read_fasta(amplicon_file, minseqlen):
-    pass
-
+    with gzip.open(amplicon_file, "rt") as filin:
+        content = ""
+        for line in filin:
+            if not line.startswith(">"):
+                content += line.strip()
+            else:
+                if len(content) >= minseqlen:
+                    yield content
+                content = ''
+        yield content
 
 def dereplication_fulllength(amplicon_file, minseqlen, mincount):
-    pass
+    gen_seq = list(read_fasta(amplicon_file, minseqlen))
 
+    seq_count = [(seq, gen_seq.count(seq)) for seq in gen_seq]
+    list_seq = list(get_unique(seq_count))
+    list_seq.sort(key = lambda seqlen: seqlen[1])
+
+    for seq in list_seq[::-1]:
+        if seq[1] >= mincount:
+            yield seq
 
 def get_unique(ids):
     return {}.fromkeys(ids).keys()
@@ -114,7 +129,17 @@ def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
     pass
 
 def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
-    pass
+    sequence_length = list(dereplication_fulllength(amplicon_file, minseqlen, mincount))
+    nb_seq = len(sequence_length)
+    list_otu = []
+
+    for i in range(nb_seq - 1):
+        list_otu.append(sequence_length[i][0])
+        for j in range(i+1, nb_seq):
+            nw.global_align(sequence_length[i][0], sequence_length[j][0], gap_open=-1, gap_extend=-1,
+             matrix=os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH")))
+            
+
 
 def fill(text, width=80):
     """Split text with a line return to respect fasta format"""
@@ -130,10 +155,18 @@ def main():
     """
     Main program function
     """
+
     # Get arguments
     args = get_arguments()
     # Votre programme ici
-
-
+    seq = ["aa","jij","kk","jij","jij\n"]
+    seqlen = [(s, seq.count(s)) for s in seq]
+    seqlen = list(dict.fromkeys(seqlen))
+    seqlen.sort(key = lambda item: item[1])
+    print(seq)
+    print(seqlen)
+    print(seqlen)
+    for i in seqlen:
+        print(i[1])
 if __name__ == '__main__':
     main()
