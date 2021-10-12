@@ -83,8 +83,15 @@ def read_fasta(amplicon_file, minseqlen):
 
 def dereplication_fulllength(amplicon_file, minseqlen, mincount):
     gen_seq = list(read_fasta(amplicon_file, minseqlen))
+    dico_count = {}
 
-    seq_count = [(seq, gen_seq.count(seq)) for seq in gen_seq]
+    for seq in gen_seq:
+        if seq not in dico_count:
+            dico_count[seq] = 1
+        else:
+            dico_count[seq] += 1
+    seq_count = dico_count.items()
+
     list_seq = list(get_unique(seq_count))
     list_seq.sort(key = lambda seqlen: seqlen[1])
 
@@ -117,7 +124,6 @@ def cut_kmer(sequence, kmer_size):
 
 def get_unique_kmer(kmer_dict, sequence, id_seq, kmer_size):
     kmers = cut_kmer(sequence, kmer_size)
-
     for kmer in kmers:
         if kmer not in kmer_dict:
             kmer_dict[kmer] = [id_seq]
@@ -173,54 +179,56 @@ def get_identity(alignment_list):
 def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
     
     all_seq = list(dereplication_fulllength(amplicon_file, minseqlen, mincount))
-    kmer_dict = get_unique_kmer({}, all_seq[0], 0, kmer_size)
-    kmer_dict = get_unique_kmer(kmer_dict, all_seq[1], 1, kmer_size)
-    count = 2
+    kmer_dict = get_unique_kmer({}, all_seq[0][0], 0, kmer_size)
+    kmer_dict = get_unique_kmer(kmer_dict, all_seq[1][0], 1, kmer_size)
     yield all_seq[0]
     yield all_seq[1]
-
-    for i in range(2, len(all_seq)):
+    nb_seq = len(all_seq)
+    print(nb_seq)
+    file_match = os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH"))
+    for i in range(2, nb_seq):
+        print(i)
         pot_parent = []
         perc_identity_matrix = []
-        seq_chunk = get_chunks(all_seq[i], chunk_size)
-
+        seq_chunk = get_chunks(all_seq[i][0], chunk_size)
         for chunk in seq_chunk:
             pot_parent.append(sorted(search_mates(kmer_dict, chunk, kmer_size)))
         for chunk_parent in pot_parent:
             parent1_chunk = get_chunks(all_seq[chunk_parent[0]][0],chunk_size)
-            parent2_chunk = get_chunks(all_seq[chunk_parent[1]][0],chunk_size)     
-        for j in range(len(chunk_size)):
+            parent2_chunk = get_chunks(all_seq[chunk_parent[1]][0],chunk_size)  
+
+        for j in range(4):
             align_parent1 = nw.global_align(seq_chunk[j], parent1_chunk[j],
-                gap_open=-1, gap_extend=-1, matrix=os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH")))
+                gap_open=-1, gap_extend=-1, matrix=file_match)
             identity_parent1 = get_identity(align_parent1)
 
             align_parent2 = nw.global_align(seq_chunk[j], parent2_chunk[j],
-                gap_open=-1, gap_extend=-1, matrix=os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH")))
+                gap_open=-1, gap_extend=-1, matrix=file_match)
             identity_parent2 = get_identity(align_parent2)
 
             perc_identity_matrix.append([identity_parent1,identity_parent2])
 
         if not detect_chimera(perc_identity_matrix):
-            kmer_dict = get_unique_kmer(kmer_dict, all_seq[i], i, kmer_size)
+            kmer_dict = get_unique_kmer(kmer_dict, all_seq[i][0], i, kmer_size)
             yield all_seq[i]
-
-
-        
+    
 
 def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
     sequence_length = list(chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size))
     nb_seq = len(sequence_length)
     list_otu = []
     mother = []
+    print(nb_seq)
+    file_match = os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH"))
     for i in range(nb_seq):
+        print("i",i)
         if sequence_length[i] in mother:
             continue
         inter = [sequence_length[i]]            
         for j in range(i+1, nb_seq):
             align = nw.global_align(sequence_length[i][0], sequence_length[j][0], gap_open=-1, gap_extend=-1,
-            matrix=os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH")))
+            matrix=file_match)
             identity = get_identity(align)
-            print(identity)
             if identity > 97: 
                 inter.append(sequence_length[j])
         list_otu.append(inter[0])                
@@ -232,6 +240,7 @@ def fill(text, width=80):
     return os.linesep.join(text[i:i+width] for i in range(0, len(text), width))
 
 def write_OTU(OTU_list, output_file):
+    print(len(OTU_list))
     with open(output_file, "w") as filout:
         count = 1
         for seqlen in OTU_list:
