@@ -124,7 +124,17 @@ def get_unique_kmer(kmer_dict, sequence, id_seq, kmer_size):
         else:
             kmer_dict[kmer] += [id_seq]
     return kmer_dict
-    
+
+def search_mates(kmer_dict, sequence, kmer_size):
+    kmer_seq = cut_kmer(sequence, kmer_size)
+    count_id = []
+    for kmer in kmer_seq:
+        if kmer in kmer_dict:
+            count_id += kmer_dict[kmer]
+    parents = Counter(count_id).most_common(2)
+    id_parent = [id for id, occ in parents]
+    return id_parent
+
 def get_identity(alignment_list):
     """Prend en une liste de séquences alignées au format ["SE-QUENCE1", "SE-QUENCE2"]
     Retourne le pourcentage d'identite entre les deux."""
