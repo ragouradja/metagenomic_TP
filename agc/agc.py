@@ -19,6 +19,8 @@ import os
 import gzip
 import statistics
 from collections import Counter
+from nltk.tag import pos_tag
+from numpy.lib.shape_base import _put_along_axis_dispatcher
 # https://github.com/briney/nwalign3
 # ftp://ftp.ncbi.nih.gov/blast/matrices/
 import nwalign3 as nw
@@ -180,30 +182,34 @@ def get_identity(alignment_list):
 def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
     
     all_seq = list(dereplication_fulllength(amplicon_file, minseqlen, mincount))
+    nb_seq = len(all_seq)
+    print(nb_seq)
+
     kmer_dict = get_unique_kmer({}, all_seq[0][0], 0, kmer_size)
     kmer_dict = get_unique_kmer(kmer_dict, all_seq[1][0], 1, kmer_size)
     yield all_seq[0]
     yield all_seq[1]
-    nb_seq = len(all_seq)
-    print(nb_seq)
     file_match = os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH"))
     for i in range(2, nb_seq):
         print(i)
         pot_parent = []
         perc_identity_matrix = []
         seq_chunk = get_chunks(all_seq[i][0], chunk_size)
-        # for chunk in seq_chunk:
-        #     pot_parent.append(sorted(search_mates(kmer_dict, chunk, kmer_size)))
-        pot_parent = sorted(search_mates(kmer_dict, all_seq[i][0], kmer_size))
-        parent1_chunk = get_chunks(all_seq[pot_parent[0]][0],chunk_size)
-        parent2_chunk = get_chunks(all_seq[pot_parent[1]][0],chunk_size)  
+        parent1_chunk = []
+        parent2_chunk = []
+
+        for chunk in seq_chunk:
+            pot_parent.append(sorted(search_mates(kmer_dict, chunk, kmer_size)))
+        for chunk_parent in pot_parent:
+            parent1_chunk.append(get_chunks(all_seq[chunk_parent[0]][0],chunk_size))
+            parent2_chunk.append(get_chunks(all_seq[chunk_parent[1]][0],chunk_size))
 
         for j in range(4):
-            align_parent1 = nw.global_align(seq_chunk[j], parent1_chunk[j],
+            align_parent1 = nw.global_align(seq_chunk[j], parent1_chunk[j][j],
                 gap_open=-1, gap_extend=-1, matrix=file_match)
             identity_parent1 = get_identity(align_parent1)
 
-            align_parent2 = nw.global_align(seq_chunk[j], parent2_chunk[j],
+            align_parent2 = nw.global_align(seq_chunk[j], parent2_chunk[j][j],
                 gap_open=-1, gap_extend=-1, matrix=file_match)
             identity_parent2 = get_identity(align_parent2)
 
@@ -212,6 +218,8 @@ def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
         if not detect_chimera(perc_identity_matrix):
             kmer_dict = get_unique_kmer(kmer_dict, all_seq[i][0], i, kmer_size)
             yield all_seq[i]
+    
+
     
 
 def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
