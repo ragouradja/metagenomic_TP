@@ -22,6 +22,7 @@ from collections import Counter
 # https://github.com/briney/nwalign3
 # ftp://ftp.ncbi.nih.gov/blast/matrices/
 import nwalign3 as nw
+import time
 
 __author__ = "Your Name"
 __copyright__ = "Universite Paris Diderot"
@@ -191,11 +192,11 @@ def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
         pot_parent = []
         perc_identity_matrix = []
         seq_chunk = get_chunks(all_seq[i][0], chunk_size)
-        for chunk in seq_chunk:
-            pot_parent.append(sorted(search_mates(kmer_dict, chunk, kmer_size)))
-        for chunk_parent in pot_parent:
-            parent1_chunk = get_chunks(all_seq[chunk_parent[0]][0],chunk_size)
-            parent2_chunk = get_chunks(all_seq[chunk_parent[1]][0],chunk_size)  
+        # for chunk in seq_chunk:
+        #     pot_parent.append(sorted(search_mates(kmer_dict, chunk, kmer_size)))
+        pot_parent = sorted(search_mates(kmer_dict, all_seq[i][0], kmer_size))
+        parent1_chunk = get_chunks(all_seq[pot_parent[0]][0],chunk_size)
+        parent2_chunk = get_chunks(all_seq[pot_parent[1]][0],chunk_size)  
 
         for j in range(4):
             align_parent1 = nw.global_align(seq_chunk[j], parent1_chunk[j],
@@ -214,11 +215,13 @@ def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
     
 
 def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
+    start = time.time()
     sequence_length = list(chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size))
     nb_seq = len(sequence_length)
     list_otu = []
     mother = []
     print(nb_seq)
+    print(time.time() - start)
     file_match = os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH"))
     for i in range(nb_seq):
         print("i",i)
@@ -264,4 +267,7 @@ def main():
     write_OTU(seq_otu, args.output_file)
 
 if __name__ == '__main__':
+    start = time.time()
     main()
+
+    print(time.time() - start)
