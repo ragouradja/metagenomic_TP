@@ -329,7 +329,6 @@ def write_OTU(OTU_list, output_file):
     :param output_file: name of the output file
     :return: a file
     """
-    print("writing")
     with open(output_file, "w") as filout:
         count = 1
         for seqlen in OTU_list:
