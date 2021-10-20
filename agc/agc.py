@@ -195,8 +195,12 @@ def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
     yield all_seq[0]
     yield all_seq[1]
     file_match = os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH"))
+<<<<<<< HEAD
     for i in range(2, 10):
         print(i)
+=======
+    for i in range(2, nb_seq):
+>>>>>>> 90f44b2aba37a7926c8d1e842488fd84c36463c9
         pot_parent = []
         perc_identity_matrix = []
         seq_chunk = get_chunks(all_seq[i][0], chunk_size)
@@ -204,9 +208,17 @@ def chimera_removal(amplicon_file, minseqlen, mincount, chunk_size, kmer_size):
         parent2_chunk = []
 
         for chunk in seq_chunk:
+<<<<<<< HEAD
             pot_parent += search_mates(kmer_dict, chunk, kmer_size)
 
         most_parent = Counter(pot_parent).most_common(2)
+=======
+            pot_parent += sorted(search_mates(kmer_dict, chunk, kmer_size))
+        most_parent = Counter(pot_parent).most_common(2)
+
+        parent1_chunk += get_chunks(all_seq[most_parent[0][0]][0],chunk_size)
+        parent2_chunk += get_chunks(all_seq[most_parent[1][0]][0],chunk_size)
+>>>>>>> 90f44b2aba37a7926c8d1e842488fd84c36463c9
 
         parent1_chunk += get_chunks(all_seq[most_parent[0][0]][0],chunk_size)
         parent2_chunk += get_chunks(all_seq[most_parent[1][0]][0],chunk_size)
@@ -238,6 +250,7 @@ def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, 
     print(nb_seq)
     print(time.time() - start)
     file_match = os.path.abspath(os.path.join(os.path.dirname(__file__),"MATCH"))
+<<<<<<< HEAD
     for i in range(1,nb_seq):
         non_sim = True
         for j in range(len(list_otu)):
@@ -250,6 +263,19 @@ def abundance_greedy_clustering(amplicon_file, minseqlen, mincount, chunk_size, 
                 break
         if non_sim:
             list_otu.append(sequence_length[i])
+=======
+    for i in range(nb_seq):
+        flag = True
+        for j in range(len(list_otu)):
+            align = nw.global_align(sequence_length[i][0], sequence_length[j][0], gap_open=-1, gap_extend=-1,
+            matrix=file_match)
+            identity = get_identity(align)
+            if identity > 97:
+                flag = False
+                break
+        if flag:
+            list_otu.append(sequence_length[j])
+>>>>>>> 90f44b2aba37a7926c8d1e842488fd84c36463c9
 
     return list_otu
 
